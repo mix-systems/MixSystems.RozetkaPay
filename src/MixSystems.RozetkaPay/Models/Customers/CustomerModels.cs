@@ -1,0 +1,377 @@
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+using MixSystems.RozetkaPay.Converters;
+using MixSystems.RozetkaPay.Models.Common;
+using MixSystems.RozetkaPay.Models.Payments;
+
+namespace MixSystems.RozetkaPay.Models.Customers;
+
+/// <summary>
+/// Request to add customer payment method (JSON object as per CDN documentation)
+/// </summary>
+public class AddCustomerPaymentRequest
+{
+    /// <summary>
+    /// Callback URL for payment confirmation notifications (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("callback_url")]
+    public string? CallbackUrl { get; set; }
+
+    /// <summary>
+    /// Payment method details (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payment_method")]
+    [Required]
+    public AddCustomerPaymentMethod PaymentMethod { get; set; } = new();
+
+    /// <summary>
+    /// Result URL for user redirection (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("result_url")]
+    public string? ResultUrl { get; set; }
+
+    /// <summary>
+    /// Whether to make this payment method default (JSON boolean as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("make_default")]
+    public bool MakeDefault { get; set; } = false;
+
+    /// <summary>
+    /// Payment mode (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("mode")]
+    [Required]
+    public PaymentMode Mode { get; set; }
+
+    /// <summary>
+    /// Browser fingerprint for fraud detection (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("fingerprint")]
+    public BrowserFingerprint? Fingerprint { get; set; }
+}
+
+/// <summary>
+/// Add customer payment method details (JSON object as per CDN documentation)
+/// </summary>
+public class AddCustomerPaymentMethod
+{
+    /// <summary>
+    /// Payment method type (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("type")]
+    [Required]
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Credit card token details (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("cc_token")]
+    public AddCustomerCCToken? CCToken { get; set; }
+
+    /// <summary>
+    /// Encrypted credit card token details (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("encrypted_cc_token")]
+    public AddCustomerEncryptedCCToken? EncryptedCCToken { get; set; }
+}
+
+/// <summary>
+/// Credit card token for adding customer payment method (JSON object as per CDN documentation)
+/// </summary>
+public class AddCustomerCCToken
+{
+    /// <summary>
+    /// Card token (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("token")]
+    [Required]
+    public string Token { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Card mask (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("mask")]
+    [Required]
+    public string Mask { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Card expiration date (ISO 8601 format)
+    /// </summary>
+    [JsonPropertyName("expires_at")]
+    [JsonConverter(typeof(FlexibleDateTimeConverter))]
+    [Required]
+    public DateTime ExpiresAt { get; set; }
+
+    /// <summary>
+    /// Whether to use 3DS flow (JSON boolean as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("use_3ds_flow")]
+    public bool? Use3DSFlow { get; set; }
+}
+
+/// <summary>
+/// Encrypted credit card token for adding customer payment method (JSON object as per CDN documentation)
+/// </summary>
+public class AddCustomerEncryptedCCToken
+{
+    /// <summary>
+    /// Encrypted data from card widget (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("data")]
+    [Required]
+    public string Data { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether to use 3DS flow (JSON boolean as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("use_3ds_flow")]
+    public bool? Use3DSFlow { get; set; }
+}
+
+/// <summary>
+/// Request to delete customer payment method (JSON object as per CDN documentation)
+/// </summary>
+public class DeleteCustomerPaymentRequest
+{
+    /// <summary>
+    /// Card identifier in wallet (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("option_id")]
+    [Required]
+    public string OptionId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Payment method type (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("type")]
+    [Required]
+    public string Type { get; set; } = "card";
+}
+
+// ===================== CUSTOMER WALLET MODELS =====================
+
+// ===================== ADD CARD TO WALLET MODELS =====================
+
+
+
+
+// ===================== DELETE CARD FROM WALLET MODELS =====================
+
+
+// ===================== WALLET ITEM MODELS =====================
+
+
+// ===================== CARD CONFIRMATION MODELS =====================
+
+
+// ===================== SET DEFAULT CARD MODELS =====================
+
+/// <summary>
+/// Request to set default card
+/// </summary>
+public class SetDefaultCardRequest
+{
+    /// <summary>
+    /// Identifier of the wallet option to make default.
+    /// </summary>
+    [Required]
+    [JsonPropertyName("option_id")]
+    public required Guid OptionId { get; set; }
+
+    /// <summary>
+    /// Kind of wallet option being set. The document declares one value.
+    /// </summary>
+    [Required]
+    [JsonPropertyName("type")]
+    public required WalletOptionType Type { get; set; }
+}
+
+/// <summary>
+/// Kind of wallet option a default-selection request refers to.
+/// </summary>
+public enum WalletOptionType
+{
+    /// <summary>A saved card.</summary>
+    [JsonStringEnumMemberName("card")]
+    Card
+}
+
+/// <summary>
+/// Set default card response
+/// </summary>
+public class SetDefaultCardResponse
+{
+    /// <summary>
+    /// Operation status
+    /// </summary>
+    [JsonPropertyName("status")]
+    public string? Status { get; set; }
+
+    /// <summary>
+    /// Default card ID
+    /// </summary>
+    [JsonPropertyName("default_card_id")]
+    public string? DefaultCardId { get; set; }
+
+    /// <summary>
+    /// Status message
+    /// </summary>
+    [JsonPropertyName("message")]
+    public string? Message { get; set; }
+
+    /// <summary>
+    /// Provider field &lt;c&gt;option_id&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("option_id")]
+    public Guid? OptionId { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;success&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("success")]
+    public bool? Success { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;type&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("type")]
+    public string? Type { get; set; }
+}
+
+// ===================== CUSTOMER CARDS MODELS =====================
+
+
+/// <summary>
+/// Response when adding customer payment method
+/// </summary>
+public class AddCustomerPaymentResult
+{
+    /// <summary>
+    /// Action details if required
+    /// </summary>
+    [JsonPropertyName("action")]
+    public UserAction? Action { get; set; }
+
+    /// <summary>
+    /// Flag that indicates necessity of the post-request action (fill data on the checkout, 3ds confirmation, etc.)
+    /// </summary>
+    [JsonPropertyName("action_required")]
+    public bool ActionRequired { get; set; }
+
+    /// <summary>
+    /// Creation timestamp
+    /// </summary>
+    [JsonPropertyName("created_at")]
+    public DateTime CreatedAt { get; set; }
+
+    /// <summary>
+    /// Payment method information
+    /// </summary>
+    [JsonPropertyName("payment_method")]
+    public WalletItem? PaymentMethod { get; set; }
+
+    /// <summary>
+    /// Operation status
+    /// </summary>
+    [JsonPropertyName("status")]
+    public OperationStatus Status { get; set; }
+
+    /// <summary>
+    /// Type of the performed operation
+    /// </summary>
+    [JsonPropertyName("operation")]
+    public string Operation { get; set; } = "add_payment_method";
+
+    /// <summary>
+    /// Customer information
+    /// </summary>
+    [JsonPropertyName("customer")]
+    public CustomerInfo? Customer { get; set; }
+}
+
+/// <summary>
+/// Response when deleting customer payment method
+/// </summary>
+public class DeleteCustomerPaymentResult
+{
+    /// <summary>
+    /// Whether deletion was successful
+    /// </summary>
+    [JsonPropertyName("delete")]
+    public bool Delete { get; set; }
+
+    /// <summary>
+    /// Payment method option ID
+    /// </summary>
+    [JsonPropertyName("option_id")]
+    public string? OptionId { get; set; }
+
+    /// <summary>
+    /// Payment method type
+    /// </summary>
+    [JsonPropertyName("type")]
+    public PaymentMethodType Type { get; set; }
+}
+
+
+/// <summary>
+/// The customer record and their saved payment methods, as returned by
+/// <c>GET /api/customers/v1/wallet</c>.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The only type in this work that had to be written rather than switched to: every other declared
+/// model already existed in the SDK and was simply unused. <c>CustomerWalletResponse</c>, which this
+/// replaces, declared <c>customer_id</c>, <c>cards</c> and <c>default_card_id</c> — none of which the
+/// document declares here. Against a real response every one of its properties read <c>null</c>, so
+/// a caller would conclude the customer had no saved cards.
+/// </para>
+/// </remarks>
+public class CustomerWallet
+{
+    /// <summary>Caller's own identifier for the customer.</summary>
+    [JsonPropertyName("external_id")]
+    public string? ExternalId { get; set; }
+
+    /// <summary>Provider-side identifier for the customer.</summary>
+    [JsonPropertyName("rid")]
+    public string? Rid { get; set; }
+
+    /// <summary>Customer first name.</summary>
+    [JsonPropertyName("first_name")]
+    public string? FirstName { get; set; }
+
+    /// <summary>Customer last name.</summary>
+    [JsonPropertyName("last_name")]
+    public string? LastName { get; set; }
+
+    /// <summary>Customer patronymic.</summary>
+    [JsonPropertyName("patronym")]
+    public string? Patronym { get; set; }
+
+    /// <summary>Customer email address.</summary>
+    [JsonPropertyName("email")]
+    public string? Email { get; set; }
+
+    /// <summary>Customer phone number.</summary>
+    [JsonPropertyName("phone")]
+    public string? Phone { get; set; }
+
+    /// <summary>Street address.</summary>
+    [JsonPropertyName("address")]
+    public string? Address { get; set; }
+
+    /// <summary>City.</summary>
+    [JsonPropertyName("city")]
+    public string? City { get; set; }
+
+    /// <summary>Country.</summary>
+    [JsonPropertyName("country")]
+    public string? Country { get; set; }
+
+    /// <summary>Postal code.</summary>
+    [JsonPropertyName("postal_code")]
+    public string? PostalCode { get; set; }
+
+    /// <summary>The customer's saved payment methods.</summary>
+    [JsonPropertyName("wallet")]
+    public List<WalletItem>? Wallet { get; set; }
+}
