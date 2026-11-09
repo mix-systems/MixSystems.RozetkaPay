@@ -1,0 +1,52 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    Microsoft.Extensions.Configuration, .DependencyInjection and .Logging.Abstractions are no longer
+    referenced as packages: the test-only Microsoft.AspNetCore.App framework reference below already
+    supplies them, and NuGet reports a redundant reference as NU1510 - an error under -warnaserror.
+    Only the test project is affected; the packable SDK keeps its own explicit package references and its
+    published dependency set is unchanged.
+  -->
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <!--
+    Test-only reference to the ASP.NET Core shared framework. The HTTP-boundary tests run the SDK against
+    a real Kestrel server on loopback, which is the only way to prove what actually goes on the wire.
+    A FrameworkReference resolves against the shared framework the .NET SDK already installs for both
+    target frameworks, so no TestHost NuGet package - and no new runtime dependency for the package under
+    test, which stays IsPackable=false here and unchanged in src - is introduced.
+  -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MixSystems.RozetkaPay\MixSystems.RozetkaPay.csproj" />
+  </ItemGroup>
+
+  <!--
+    The pinned OpenAPI snapshot is asserted against directly, so it is copied next to the test assembly.
+    Reading the repository copy through a relative path from the output directory would silently pass if
+    the file moved; a missing copied file fails the build instead.
+  -->
+  <ItemGroup>
+    <None Include="..\..\src\MixSystems.RozetkaPay\docs\openapi.json"
+          Link="openapi.json"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

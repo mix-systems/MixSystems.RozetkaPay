@@ -1,0 +1,98 @@
+name: Build & Test
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  openapi-drift:
+    name: OpenAPI drift
+    runs-on: ubuntu-latest
+
+    # Deliberately a separate job rather than a step of build-test-pack. The contract tests assert
+    # against the committed snapshot, so they cannot tell whether that snapshot still matches what
+    # RozetkaPay publishes — that is this job's only question, and it must be answerable at a glance
+    # without reading a green test run's log. The same script also runs once a day, independently of any
+    # pull request, from .github/workflows/openapi-drift.yml.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Compare the snapshot against the published document
+        run: ./scripts/verify-openapi-drift.sh
+
+  build-test-pack:
+    runs-on: ubuntu-latest
+
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          # Full history is required so MinVer can compute the version.
+          fetch-depth: 0
+
+      # Read-only guard, run before anything is restored or built: it fails if
+      # IDE/agent/build/package junk ever became tracked, and if the .gitignore
+      # rules that keep it untracked stopped matching. Cheap, so it runs first.
+      - name: Verify repository hygiene
+        run: scripts/verify-repository-hygiene.sh
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      # Restores the repository-local tool manifest (.config/dotnet-tools.json),
+      # which pins the 'sourcelink' tool used to validate the PDBs.
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Restore
+        run: dotnet restore MixSystems.RozetkaPay.sln
+
+      # ContinuousIntegrationBuild=true normalizes embedded source paths to
+      # '/_/*' so no runner filesystem root leaks into the PDBs. The project
+      # already sets it when GITHUB_ACTIONS is true; passing it explicitly keeps
+      # the official build contract visible here and independent of that.
+      - name: Build
+        run: |
+          dotnet build MixSystems.RozetkaPay.sln -c Release --no-restore -warnaserror \
+            -p:ContinuousIntegrationBuild=true
+
+      - name: Test
+        run: |
+          dotnet test MixSystems.RozetkaPay.sln -c Release --no-build \
+            --logger "trx;LogFilePrefix=test-results" \
+            --results-directory ./TestResults
+
+      # Rebuilds this exact commit in a second, throwaway worktree under a
+      # different filesystem root and requires identical DLL/PDB/XML hashes.
+      - name: Verify deterministic build
+        run: scripts/verify-deterministic-build.sh
+
+      - name: Pack
+        run: |
+          dotnet pack src/MixSystems.RozetkaPay/MixSystems.RozetkaPay.csproj -c Release --no-build \
+            -p:ContinuousIntegrationBuild=true -o ./artifacts
+
+      # The same verifier the tag release runs, so a release can never pass
+      # weaker artifact checks than a pull request. The expected commit comes
+      # from the exact checkout that was built, never from a branch or tag name.
+      # The remote Source Link check is deliberately not skipped here.
+      - name: Verify package artifacts
+        run: scripts/verify-package-artifacts.sh ./artifacts "$(git rev-parse HEAD)"

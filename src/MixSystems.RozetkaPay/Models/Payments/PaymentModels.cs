@@ -1,0 +1,1556 @@
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+using MixSystems.RozetkaPay.Converters;
+using MixSystems.RozetkaPay.Models.Common;
+
+namespace MixSystems.RozetkaPay.Models.Payments;
+
+// ===================== RECURRENT PAYMENT MODELS =====================
+
+/// <summary>
+/// Request to create a recurrent payment
+/// </summary>
+public class CreateRecurrentPaymentRequest
+{
+    /// <summary>
+    /// Recurrent identifier returned by the payment that initialised the series.
+    /// </summary>
+    [Required]
+    [JsonPropertyName("recurrent_id")]
+    public required string RecurrentId { get; set; }
+
+    /// <summary>
+    /// Unique external identifier for this payment.
+    /// </summary>
+    [Required]
+    [JsonPropertyName("external_id")]
+    public required string ExternalId { get; set; }
+
+    /// <summary>
+    /// Payment amount.
+    /// </summary>
+    [Required]
+    [JsonPropertyName("amount")]
+    public required decimal Amount { get; set; }
+
+    /// <summary>
+    /// Identifier linking this payment to others across systems.
+    /// </summary>
+    [JsonPropertyName("unified_external_id")]
+    public string? UnifiedExternalId { get; set; }
+
+    /// <summary>
+    /// Callback URL for payment notifications.
+    /// </summary>
+    [JsonPropertyName("callback_url")]
+    public string? CallbackUrl { get; set; }
+
+    /// <summary>
+    /// Opaque merchant payload echoed back on the callback.
+    /// </summary>
+    [JsonPropertyName("payload")]
+    public string? Payload { get; set; }
+
+    /// <summary>
+    /// API key of the merchant this payment is delegated to.
+    /// </summary>
+    [JsonPropertyName("delegate_api_key")]
+    public Guid? DelegateApiKey { get; set; }
+
+    /// <summary>
+    /// Subscription this payment belongs to.
+    /// </summary>
+    [JsonPropertyName("subscription_id")]
+    public string? SubscriptionId { get; set; }
+
+    /// <summary>
+    /// Whether to confirm the payment immediately rather than leaving it authorised.
+    /// </summary>
+    [JsonPropertyName("confirm")]
+    public bool? Confirm { get; set; }
+
+    /// <summary>
+    /// Additional merchant-defined data associated with the payment.
+    /// </summary>
+    /// <remarks>
+    /// At most ten entries; each key up to 30 characters and each value up to 200. The limits are the
+    /// provider's, and <see cref="MetadataLimitsAttribute"/> enforces them before a
+    /// request is sent rather than leaving the gateway to reject it.
+    /// </remarks>
+    [MetadataLimits]
+    [JsonPropertyName("metadata")]
+    public Dictionary<string, string>? Metadata { get; set; }
+}
+
+// ===================== CONFIRM PAYMENT MODELS =====================
+
+/// <summary>
+/// Request to confirm a payment
+/// </summary>
+public class ConfirmPaymentRequest
+{
+    /// <summary>
+    /// External ID of the payment to confirm
+    /// </summary>
+    [Required]
+    [JsonPropertyName("external_id")]
+    public required string ExternalId { get; set; }
+
+    /// <summary>
+    /// Amount to confirm (optional; confirms the full amount when omitted).
+    /// </summary>
+    [JsonPropertyName("amount")]
+    public decimal? Amount { get; set; }
+
+    /// <summary>
+    /// Currency of <see cref="Amount"/>.
+    /// </summary>
+    [JsonPropertyName("currency")]
+    public string? Currency { get; set; }
+
+    /// <summary>
+    /// Products covered by this confirmation, for a partial capture that names the items.
+    /// </summary>
+    [JsonPropertyName("products")]
+    public List<Product>? Products { get; set; }
+
+    /// <summary>
+    /// Opaque merchant payload echoed back on the callback.
+    /// </summary>
+    [JsonPropertyName("payload")]
+    public string? Payload { get; set; }
+
+    /// <summary>
+    /// Callback URL for this operation, overriding the one the payment was created with.
+    /// </summary>
+    [JsonPropertyName("callback_url")]
+    public string? CallbackUrl { get; set; }
+}
+
+// ===================== CANCEL PAYMENT MODELS =====================
+
+/// <summary>
+/// Request to cancel a payment
+/// </summary>
+public class CancelPaymentRequest
+{
+    /// <summary>
+    /// External ID of the payment to cancel
+    /// </summary>
+    [Required]
+    [JsonPropertyName("external_id")]
+    public required string ExternalId { get; set; }
+
+    /// <summary>
+    /// Amount to cancel (optional; cancels the full amount when omitted).
+    /// </summary>
+    [JsonPropertyName("amount")]
+    public decimal? Amount { get; set; }
+
+    /// <summary>
+    /// Currency of <see cref="Amount"/>.
+    /// </summary>
+    [JsonPropertyName("currency")]
+    public string? Currency { get; set; }
+
+    /// <summary>
+    /// Products covered by this cancel, for a partial cancel that names the items.
+    /// </summary>
+    [JsonPropertyName("products")]
+    public List<Product>? Products { get; set; }
+
+    /// <summary>
+    /// Opaque merchant payload echoed back on the callback.
+    /// </summary>
+    [JsonPropertyName("payload")]
+    public string? Payload { get; set; }
+
+    /// <summary>
+    /// Callback URL for this operation, overriding the one the payment was created with.
+    /// </summary>
+    [JsonPropertyName("callback_url")]
+    public string? CallbackUrl { get; set; }
+}
+
+// ===================== REFUND PAYMENT MODELS =====================
+
+/// <summary>
+/// Request to refund a payment
+/// </summary>
+[ExplicitFullRefund]
+public class RefundPaymentRequest
+{
+    /// <summary>
+    /// External ID of the original payment
+    /// </summary>
+    [Required]
+    [JsonPropertyName("external_id")]
+    public required string ExternalId { get; set; }
+
+    /// <summary>
+    /// Amount to refund in UAH (optional, refunds full amount if not specified)
+    /// </summary>
+    [JsonPropertyName("amount")]
+    public decimal? Amount { get; set; }
+
+
+
+    /// <summary>
+    /// Callback URL for refund notifications
+    /// </summary>
+    [JsonPropertyName("callback_url")]
+    public string? CallbackUrl { get; set; }
+
+    // reason and external_refund_id are gone with EXP-436. The document declares neither, so the
+    // gateway discarded both: a caller who recorded a refund reason or their own refund id believed
+    // it was stored, and it never left the process in any form the provider kept.
+
+    /// <summary>
+    /// Refund currency. Declared by the document alongside the amount.
+    /// </summary>
+    [JsonPropertyName("currency")]
+    public string? Currency { get; set; }
+
+    /// <summary>
+    /// Opaque value echoed back on the callback.
+    /// </summary>
+    [JsonPropertyName("payload")]
+    public string? Payload { get; set; }
+
+    /// <summary>
+    /// Line items covered by the refund, for fiscalization.
+    /// </summary>
+    [JsonPropertyName("products")]
+    public List<Product>? Products { get; set; }
+
+    /// <summary>
+    /// Says the caller means to refund the entire payment when <see cref="Amount"/> is null.
+    /// </summary>
+    /// <remarks>
+    /// Never serialized: omitting the amount is what tells the provider to refund everything, and
+    /// that is unchanged. This exists so a null arrived at by arithmetic cannot pass for a decision.
+    /// </remarks>
+    [JsonIgnore]
+    public bool RefundEntirePayment { get; set; }
+}
+
+/// <summary>
+/// Request to retry a pending refund operation
+/// </summary>
+public class RetryRefundRequest
+{
+    /// <summary>
+    /// External ID of the original payment
+    /// </summary>
+    [Required]
+    [JsonPropertyName("external_id")]
+    public required string ExternalId { get; set; }
+}
+
+/// <summary>
+/// Request to cancel a pending refund operation
+/// </summary>
+public class CancelRefundRequest
+{
+    /// <summary>
+    /// External ID of the original payment
+    /// </summary>
+    [Required]
+    [JsonPropertyName("external_id")]
+    public required string ExternalId { get; set; }
+}
+
+// ===================== PAYMENT LIST MODELS =====================
+
+
+
+// ===================== PAYMENT RECEIPT MODELS =====================
+
+
+// ===================== CARD LOOKUP MODELS =====================
+
+
+
+
+// ===================== CALLBACK RESEND MODELS =====================
+
+/// <summary>
+/// Request to resend callback
+/// </summary>
+public class ResendCallbackRequest
+{
+    /// <summary>
+    /// External payment ID
+    /// </summary>
+    [Required]
+    [JsonPropertyName("external_id")]
+    public required string ExternalId { get; set; }
+
+
+    /// <summary>
+    /// Operation whose callback is being resent.
+    /// </summary>
+    [JsonPropertyName("operation")]
+    public OperationType? Operation { get; set; }
+}
+
+/// <summary>
+/// Callback resend response
+/// </summary>
+public class CallbackResendResponse
+{
+    /// <summary>
+    /// Operation status
+    /// </summary>
+    [JsonPropertyName("status")]
+    public string? Status { get; set; }
+
+    /// <summary>
+    /// Status message
+    /// </summary>
+    [JsonPropertyName("message")]
+    public string? Message { get; set; }
+
+    /// <summary>
+    /// Default constructor for 204 No Content responses
+    /// </summary>
+    public CallbackResendResponse()
+    {
+        Status = "success";
+        Message = "Callback sent successfully";
+    }
+}
+
+
+/// <summary>
+/// Request for creating a lookup payment
+/// </summary>
+public class CreateLookupRequest
+{
+    /// <summary>
+    /// Payment mode. The only field the operation requires.
+    /// </summary>
+    [Required]
+    [JsonPropertyName("mode")]
+    public PaymentMode Mode { get; set; }
+
+    /// <summary>
+    /// Lookup currency.
+    /// </summary>
+    [JsonPropertyName("currency")]
+    public string? Currency { get; set; }
+
+    /// <summary>
+    /// Customer the lookup is performed for.
+    /// </summary>
+    [JsonPropertyName("customer")]
+    public CustomerRequestUserDetails? Customer { get; set; }
+
+    /// <summary>
+    /// Human-readable description of the lookup.
+    /// </summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// Opaque merchant payload echoed back on the callback.
+    /// </summary>
+    [JsonPropertyName("payload")]
+    public string? Payload { get; set; }
+
+    /// <summary>
+    /// Callback URL for the lookup result.
+    /// </summary>
+    [JsonPropertyName("callback_url")]
+    public string? CallbackUrl { get; set; }
+
+    /// <summary>
+    /// URL the payer is returned to once the lookup completes.
+    /// </summary>
+    [JsonPropertyName("result_url")]
+    public string? ResultUrl { get; set; }
+}
+
+/// <summary>
+/// Customer request payment method details
+/// </summary>
+public class CustomerRequestPaymentMethod
+{
+    /// <summary>
+    /// Which of the sibling method objects below carries the payment details.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The schema declares this as <c>PaymentMethodType</c>, a closed set of six values, and makes it
+    /// the discriminator: which of <see cref="Card"/>, <see cref="CCToken"/>, <see cref="Wallet"/>,
+    /// <see cref="ApplePay"/>, <see cref="GooglePay"/> and the decrypted wallet methods becomes
+    /// required depends on what this says.
+    /// </para>
+    /// <para>
+    /// Nullable rather than a bare enum, deliberately. A non-nullable enum property defaults to its
+    /// zero value, so a caller who forgets this field would silently send <c>cc_token</c> instead of
+    /// failing validation — a wrong payment method in place of a loud error. Nullable plus
+    /// <c>[Required]</c> makes omission the validation failure the schema's <c>required</c> intends.
+    /// </para>
+    /// </remarks>
+    [Required]
+    [JsonPropertyName("type")]
+    public PaymentMethodType? Type { get; set; }
+
+    /// <summary>
+    /// Card details for card payments (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("cc")]
+    public CustomerCCRequestPaymentMethod? Card { get; set; }
+
+    /// <summary>
+    /// Card token details (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("cc_token")]
+    public CustomerCCTokenRequestPaymentMethod? CCToken { get; set; }
+
+
+
+
+    /// <summary>
+    /// Provider field &lt;c&gt;apple_pay&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("apple_pay")]
+    public CustomerAppleGooglePayRequestPaymentMethod? ApplePay { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;decrypted_apple_pay&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("decrypted_apple_pay")]
+    public CustomerDecryptedApplePayRequestPaymentMethod? DecryptedApplePay { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;decrypted_google_pay&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("decrypted_google_pay")]
+    public CustomerDecryptedGooglePayRequestPaymentMethod? DecryptedGooglePay { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;google_pay&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("google_pay")]
+    public CustomerAppleGooglePayRequestPaymentMethod? GooglePay { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;wallet&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("wallet")]
+    public CustomerWalletRequestPaymentMethod? Wallet { get; set; }
+}
+
+/// <summary>
+/// Customer credit card request payment method
+/// </summary>
+public class CustomerCCRequestPaymentMethod
+{
+    /// <summary>
+    /// Card CVV (JSON string as per API validation)
+    /// </summary>
+    [JsonPropertyName("cvv")]
+    [Required]
+    public string CVV { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Card expiration month (JSON number as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("exp_month")]
+    [Required]
+    [Range(1, 12)]
+    public int ExpirationMonth { get; set; }
+
+    /// <summary>
+    /// Card expiration year (JSON number as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("exp_year")]
+    [Required]
+    public int ExpirationYear { get; set; }
+
+    /// <summary>
+    /// Card number (JSON string as per API validation)
+    /// </summary>
+    [JsonPropertyName("number")]
+    [Required]
+    public string Number { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether to use 3DS flow (JSON boolean as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("use_3ds_flow")]
+    public bool? Use3DSFlow { get; set; }
+}
+
+/// <summary>
+/// Customer credit card token request payment method
+/// </summary>
+public class CustomerCCTokenRequestPaymentMethod
+{
+    /// <summary>
+    /// Card token (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("token")]
+    [Required]
+    public string Token { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether to use 3DS flow (JSON boolean as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("use_3ds_flow")]
+    public bool? Use3DSFlow { get; set; }
+
+    /// <summary>
+    /// Whether to save card to wallet (JSON boolean as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("save_to_wallet")]
+    public bool SaveToWallet { get; set; } = false;
+}
+
+/// <summary>
+/// Customer Apple/Google Pay request payment method
+/// </summary>
+public class CustomerAppleGooglePayRequestPaymentMethod
+{
+    /// <summary>
+    /// Payment token (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("token")]
+    [Required]
+    public string Token { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether to use 3DS flow (JSON boolean as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("use_3ds_flow")]
+    public bool? Use3DSFlow { get; set; }
+}
+
+/// <summary>
+/// Customer wallet request payment method (JSON object as per CDN documentation)
+/// </summary>
+public class CustomerWalletRequestPaymentMethod
+{
+    /// <summary>
+    /// Wallet option ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("option_id")]
+    [Required]
+    public string OptionId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether to use 3DS flow (JSON boolean as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("use_3ds_flow")]
+    public bool? Use3DSFlow { get; set; }
+}
+
+/// <summary>
+/// Customer request user details
+/// </summary>
+public class CustomerRequestUserDetails : BaseRequestUserDetails
+{
+    /// <summary>
+    /// Customer payment method (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payment_method")]
+    [Required]
+    public CustomerRequestPaymentMethod PaymentMethod { get; set; } = new();
+
+    /// <summary>
+    /// Customer IP address (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("ip_address")]
+    public string? IpAddress { get; set; }
+
+    /// <summary>
+    /// Customer account number (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("account_number")]
+    public string? AccountNumber { get; set; }
+
+    /// <summary>
+    /// Checkout color mode (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("color_mode")]
+    public CheckoutColorMode? ColorMode { get; set; }
+
+    /// <summary>
+    /// Customer locale (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("locale")]
+    public CustomerCheckoutLocale? Locale { get; set; }
+
+    /// <summary>
+    /// Browser fingerprint (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("fingerprint")]
+    public BrowserFingerprint? Fingerprint { get; set; }
+}
+
+
+/// <summary>
+/// Recipient request user details
+/// </summary>
+public class RecipientRequestUserDetails : BaseRequestUserDetails
+{
+    /// <summary>
+    /// Recipient payment method (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payment_method")]
+    [Required]
+    public RecipientRequestPaymentMethod PaymentMethod { get; set; } = new();
+
+
+
+    /// <summary>
+    /// Provider field &lt;c&gt;rid&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("rid")]
+    public string? Rid { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;tin&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("tin")]
+    public string? Tin { get; set; }
+}
+
+/// <summary>
+/// Recipient request payment method
+/// </summary>
+public class RecipientRequestPaymentMethod
+{
+    /// <summary>
+    /// Payment method type (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("type")]
+    [Required]
+    public string Type { get; set; } = string.Empty;
+
+
+
+    /// <summary>
+    /// Wallet details (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("wallet")]
+    public RecipientWalletRequestPaymentMethod? Wallet { get; set; }
+
+    /// <summary>
+    /// Provider field &lt;c&gt;cc_number&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("cc_number")]
+    public RecipientCCNumberRequestPaymentMethod? CcNumber { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;cc_token&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("cc_token")]
+    public RecipientCCTokenRequestPaymentMethod? CcToken { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;iban&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("iban")]
+    public RecipientIbanRequestPaymentMethod? Iban { get; set; }
+}
+
+/// <summary>
+/// Recipient credit card token request payment method
+/// </summary>
+public class RecipientCCTokenRequestPaymentMethod
+{
+    /// <summary>
+    /// Card token (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("token")]
+    [Required]
+    public string Token { get; set; } = string.Empty;
+
+}
+
+/// <summary>
+/// Recipient credit card number request payment method
+/// </summary>
+public class RecipientCCNumberRequestPaymentMethod
+{
+    /// <summary>
+    /// Card number (JSON string as per API validation)
+    /// </summary>
+    [JsonPropertyName("number")]
+    [Required]
+    public string Number { get; set; } = string.Empty;
+
+
+}
+
+/// <summary>
+/// Recipient wallet request payment method
+/// </summary>
+public class RecipientWalletRequestPaymentMethod
+{
+    /// <summary>
+    /// Wallet option ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("option_id")]
+    [Required]
+    public string OptionId { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Result payment method information
+/// </summary>
+public class ResultPaymentMethod
+{
+    /// <summary>
+    /// Payment method type (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("type")]
+    public string? Type { get; set; }
+
+    /// <summary>
+    /// Payment method title (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+
+    /// <summary>
+    /// Payment system (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payment_system")]
+    public string? PaymentSystem { get; set; }
+
+    /// <summary>
+    /// Provider field &lt;c&gt;apple_pay&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("apple_pay")]
+    public ApplePayResponsePaymentMethod? ApplePay { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;cc_token&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("cc_token")]
+    public CCTokenResponsePaymentMethod? CcToken { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;google_pay&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("google_pay")]
+    public GooglePayResponsePaymentMethod? GooglePay { get; set; }
+}
+
+/// <summary>
+/// Result user details.
+/// </summary>
+/// <remarks>
+/// Declares its own fields rather than deriving from <see cref="UserInfo"/> (EXP-423). The document's
+/// <c>ResultUserDetails</c> is a <b>flat</b> schema — no <c>allOf</c> — and it declares neither
+/// <c>browser_user_agent</c> nor <c>ip_address</c>, which C# inheritance was adding. On a response body an
+/// undeclared field is not harmless noise: it is a property that is permanently <c>null</c> and reads as
+/// "the provider did not send this", which is a different claim from "this field does not exist here".
+/// </remarks>
+public class ResultUserDetails
+{
+    /// <summary>
+    /// Payment method used (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payment_method")]
+    public ResultPaymentMethod? PaymentMethod { get; set; }
+
+    /// <summary>
+    /// Provider field &lt;c&gt;account_number&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("account_number")]
+    public string? AccountNumber { get; set; }
+
+    /// <summary>
+    /// Email address (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("email")]
+    public string? Email { get; set; }
+
+    /// <summary>
+    /// External user ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("external_id")]
+    public string? ExternalId { get; set; }
+
+    /// <summary>
+    /// First name (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("first_name")]
+    public string? FirstName { get; set; }
+
+    /// <summary>
+    /// Last name (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("last_name")]
+    public string? LastName { get; set; }
+
+    /// <summary>
+    /// Patronym (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("patronym")]
+    public string? Patronym { get; set; }
+
+    /// <summary>
+    /// Phone number (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("phone")]
+    public string? Phone { get; set; }
+
+    /// <summary>
+    /// Payer identification code (<c>tin</c>). Added to the published schema on 2026-09-30.
+    /// </summary>
+    [JsonPropertyName("tin")]
+    public string? Tin { get; set; }
+}
+
+/// <summary>
+/// Payment operation result
+/// </summary>
+public class PaymentOperationResult
+{
+    /// <summary>
+    /// Internal payment ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// External payment ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("external_id")]
+    public string? ExternalId { get; set; }
+
+    /// <summary>
+    /// Unified external ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("unified_external_id")]
+    public string? UnifiedExternalId { get; set; }
+
+    /// <summary>
+    /// Whether operation was successful (JSON boolean as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("is_success")]
+    public bool IsSuccess { get; set; }
+
+    /// <summary>
+    /// Transaction details (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("details")]
+    public TransactionDetails? Details { get; set; }
+
+    /// <summary>
+    /// Whether action is required from customer (JSON boolean as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("action_required")]
+    public bool ActionRequired { get; set; }
+
+    /// <summary>
+    /// Required user action (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("action")]
+    public UserAction? Action { get; set; }
+
+    /// <summary>
+    /// Receipt URL (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("receipt_url")]
+    public string? ReceiptUrl { get; set; }
+
+    /// <summary>
+    /// Payment method information (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payment_method")]
+    public ResultPaymentMethod? PaymentMethod { get; set; }
+
+    /// <summary>
+    /// Customer details (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("customer")]
+    public ResultUserDetails? Customer { get; set; }
+
+    /// <summary>
+    /// Additional merchant-defined data associated with the payment.
+    /// </summary>
+    /// <remarks>
+    /// At most ten entries; each key up to 30 characters and each value up to 200. The limits are the
+    /// provider's, and <see cref="MetadataLimitsAttribute"/> enforces them before a
+    /// request is sent rather than leaving the gateway to reject it.
+    /// </remarks>
+    [MetadataLimits]
+    [JsonPropertyName("metadata")]
+    public Dictionary<string, string>? Metadata { get; set; }
+
+    /// <summary>
+    /// External identifier from the merchant, one per batch.
+    /// </summary>
+    [JsonPropertyName("batch_external_id")]
+    public string? BatchExternalId { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;operation&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("operation")]
+    public OperationType? Operation { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;project_id&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("project_id")]
+    public string? ProjectId { get; set; }
+
+    /// <summary>
+    /// External ID of the parent order (<c>child_of</c>). Empty when <see cref="HasChild"/> is
+    /// <see langword="true"/>. Added to the published schema on 2026-09-30.
+    /// </summary>
+    [JsonPropertyName("child_of")]
+    public string? ChildOf { get; set; }
+
+    /// <summary>
+    /// Whether this order has a child order (<c>has_child</c>); <see langword="false"/> when
+    /// <see cref="ChildOf"/> carries a value. <see langword="null"/> when the provider omitted it. Added to the
+    /// published schema on 2026-09-30.
+    /// </summary>
+    [JsonPropertyName("has_child")]
+    public bool? HasChild { get; set; }
+}
+
+/// <summary>
+/// Payment status result
+/// </summary>
+public class PaymentStatusResult
+{
+    /// <summary>
+    /// Payment ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// External payment ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("external_id")]
+    public string? ExternalId { get; set; }
+
+    /// <summary>
+    /// Payment status (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("status")]
+    public string? Status { get; set; }
+
+    /// <summary>
+    /// Payment amount (JSON number as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("amount")]
+    public decimal? Amount { get; set; }
+
+    /// <summary>
+    /// Payment currency (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("currency")]
+    public string? Currency { get; set; }
+
+    /// <summary>
+    /// Payment creation date (ISO 8601 format)
+    /// </summary>
+    [JsonPropertyName("created_at")]
+    [JsonConverter(typeof(FlexibleDateTimeConverter))]
+    public DateTime? CreatedAt { get; set; }
+
+    /// <summary>
+    /// Payment processing date (ISO 8601 format)
+    /// </summary>
+    [JsonPropertyName("processed_at")]
+    [JsonConverter(typeof(NullableFlexibleDateTimeConverter))]
+    public DateTime? ProcessedAt { get; set; }
+
+    /// <summary>
+    /// Object which contains information about required post-request action. Will be null if action not required.
+    /// </summary>
+    [JsonPropertyName("action")]
+    public UserAction? Action { get; set; }
+    /// <summary>
+    /// A boolean flag which indicates if action from the customer is required
+    /// </summary>
+    [JsonPropertyName("action_required")]
+    public bool? ActionRequired { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;amount_canceled&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("amount_canceled")]
+    public string? AmountCanceled { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;amount_confirmed&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("amount_confirmed")]
+    public string? AmountConfirmed { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;amount_refunded&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("amount_refunded")]
+    public string? AmountRefunded { get; set; }
+    /// <summary>
+    /// External identifier from the merchant, one per batch.
+    /// </summary>
+    [JsonPropertyName("batch_external_id")]
+    public string? BatchExternalId { get; set; }
+    /// <summary>
+    /// A boolean flag which indicates if payment was canceled
+    /// </summary>
+    [JsonPropertyName("canceled")]
+    public bool? Canceled { get; set; }
+    /// <summary>
+    /// List of cancellation transactions
+    /// </summary>
+    [JsonPropertyName("cancellation_details")]
+    public List<TransactionDetails>? CancellationDetails { get; set; }
+    /// <summary>
+    /// List of confirmation transactions in the 2-step acquiring flow
+    /// </summary>
+    [JsonPropertyName("confirmation_details")]
+    public List<TransactionDetails>? ConfirmationDetails { get; set; }
+    /// <summary>
+    /// A boolean flag for the 2-step acquiring flow which indicates if payment was confirmed
+    /// </summary>
+    [JsonPropertyName("confirmed")]
+    public bool? Confirmed { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;customer&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("customer")]
+    public ResultUserDetails? Customer { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;delivery_details&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("delivery_details")]
+    public ExpressCheckoutDeliveryDetails? DeliveryDetails { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;order_recipient&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("order_recipient")]
+    public ExpressCheckoutRecipient? OrderRecipient { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;partner_details&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("partner_details")]
+    public PartnerDetails? PartnerDetails { get; set; }
+    /// <summary>
+    /// List of primary transactions
+    /// </summary>
+    [JsonPropertyName("purchase_details")]
+    public List<TransactionDetails>? PurchaseDetails { get; set; }
+    /// <summary>
+    /// A boolean flag which indicates if payment was successful
+    /// </summary>
+    [JsonPropertyName("purchased")]
+    public bool? Purchased { get; set; }
+    /// <summary>
+    /// Link to the receipt for user
+    /// </summary>
+    [JsonPropertyName("receipt_url")]
+    public string? ReceiptUrl { get; set; }
+    /// <summary>
+    /// List of refund transactions
+    /// </summary>
+    [JsonPropertyName("refund_details")]
+    public List<TransactionDetails>? RefundDetails { get; set; }
+    /// <summary>
+    /// A boolean flag which indicates if payment was refunded
+    /// </summary>
+    [JsonPropertyName("refunded")]
+    public bool? Refunded { get; set; }
+    /// <summary>
+    /// Unified external id
+    /// </summary>
+    [JsonPropertyName("unified_external_id")]
+    public string? UnifiedExternalId { get; set; }
+}
+
+/// <summary>
+/// Payment receipt result
+/// </summary>
+public class PaymentReceiptResult
+{
+    /// <summary>
+    /// Receipt data (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("receipt")]
+    public string? Receipt { get; set; }
+
+    /// <summary>
+    /// Receipt URL (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("receipt_url")]
+    public string? ReceiptUrl { get; set; }
+
+    /// <summary>
+    /// Provider field &lt;c&gt;project_id&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("project_id")]
+    public string? ProjectId { get; set; }
+}
+
+/// <summary>
+/// Payment search result item
+/// </summary>
+public class PaymentSearchResult
+{
+    /// <summary>
+    /// Payment ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// External payment ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("external_id")]
+    public string? ExternalId { get; set; }
+
+    /// <summary>
+    /// Payment status (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("status")]
+    public string? Status { get; set; }
+
+    /// <summary>
+    /// Payment amount (JSON number as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("amount")]
+    public decimal? Amount { get; set; }
+
+    /// <summary>
+    /// Payment currency (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("currency")]
+    public string? Currency { get; set; }
+
+    /// <summary>
+    /// Payment creation date (ISO 8601 format)
+    /// </summary>
+    [JsonPropertyName("created_at")]
+    [JsonConverter(typeof(FlexibleDateTimeConverter))]
+    public DateTime? CreatedAt { get; set; }
+
+    /// <summary>
+    /// Provider field &lt;c&gt;project_id&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("project_id")]
+    public string? ProjectId { get; set; }
+}
+
+/// <summary>
+/// Payment search list result
+/// </summary>
+public class PaymentSearchList
+{
+    /// <summary>
+    /// List of payments (JSON array as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payments")]
+    public List<PaymentSearchResult>? Payments { get; set; }
+
+    /// <summary>
+    /// Total count of payments (JSON number as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("total")]
+    public int? Total { get; set; }
+
+    /// <summary>
+    /// Current count in response (JSON number as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("count")]
+    public int? Count { get; set; }
+
+    /// <summary>
+    /// Provider field &lt;c&gt;has_more&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("has_more")]
+    public bool? HasMore { get; set; }
+}
+
+
+/// <summary>
+/// Apple Pay response payment method (JSON object as per CDN documentation)
+/// </summary>
+public class ApplePayResponsePaymentMethod
+{
+    /// <summary>
+    /// Bank short name (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("bank_short_name")]
+    public string? BankShortName { get; set; }
+
+    /// <summary>
+    /// Alias name of the card BIN (<c>bin_alias_name</c>), for example <c>ROZETKA CARD</c>. Added to the
+    /// published schema on 2026-09-30.
+    /// </summary>
+    [JsonPropertyName("bin_alias_name")]
+    public string? BinAliasName { get; set; }
+
+    /// <summary>
+    /// Card expiration date (ISO 8601 format)
+    /// </summary>
+    [JsonPropertyName("expires_at")]
+    [JsonConverter(typeof(NullableFlexibleDateTimeConverter))]
+    public DateTime? ExpiresAt { get; set; }
+
+    /// <summary>
+    /// Card mask (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("mask")]
+    public string? Mask { get; set; }
+
+    /// <summary>
+    /// Payment system (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payment_system")]
+    public string? PaymentSystem { get; set; }
+
+    /// <summary>
+    /// Payment token (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("token")]
+    public string? Token { get; set; }
+
+    /// <summary>
+    /// Provider field &lt;c&gt;bin_country&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("bin_country")]
+    public string? BinCountry { get; set; }
+}
+
+/// <summary>
+/// Google Pay response payment method (JSON object as per CDN documentation)
+/// </summary>
+public class GooglePayResponsePaymentMethod
+{
+    /// <summary>
+    /// Bank short name (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("bank_short_name")]
+    public string? BankShortName { get; set; }
+
+    /// <summary>
+    /// Alias name of the card BIN (<c>bin_alias_name</c>), for example <c>ROZETKA CARD</c>. Added to the
+    /// published schema on 2026-09-30.
+    /// </summary>
+    [JsonPropertyName("bin_alias_name")]
+    public string? BinAliasName { get; set; }
+
+    /// <summary>
+    /// Card expiration date (ISO 8601 format)
+    /// </summary>
+    [JsonPropertyName("expires_at")]
+    [JsonConverter(typeof(NullableFlexibleDateTimeConverter))]
+    public DateTime? ExpiresAt { get; set; }
+
+    /// <summary>
+    /// Card mask (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("mask")]
+    public string? Mask { get; set; }
+
+    /// <summary>
+    /// Payment system (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payment_system")]
+    public string? PaymentSystem { get; set; }
+
+    /// <summary>
+    /// Payment token (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("token")]
+    public string? Token { get; set; }
+
+    /// <summary>
+    /// Provider field &lt;c&gt;bin_country&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("bin_country")]
+    public string? BinCountry { get; set; }
+}
+
+/// <summary>
+/// Credit card token response payment method (JSON object as per CDN documentation)
+/// </summary>
+public class CCTokenResponsePaymentMethod
+{
+    /// <summary>
+    /// Bank short name (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("bank_short_name")]
+    public string? BankShortName { get; set; }
+
+    /// <summary>
+    /// Alias name of the card BIN (<c>bin_alias_name</c>), for example <c>ROZETKA CARD</c>. Added to the
+    /// published schema on 2026-09-30.
+    /// </summary>
+    [JsonPropertyName("bin_alias_name")]
+    public string? BinAliasName { get; set; }
+
+    /// <summary>
+    /// Card expiration date (ISO 8601 format)
+    /// </summary>
+    [JsonPropertyName("expires_at")]
+    [JsonConverter(typeof(NullableFlexibleDateTimeConverter))]
+    public DateTime? ExpiresAt { get; set; }
+
+    /// <summary>
+    /// Card mask (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("mask")]
+    public string? Mask { get; set; }
+
+    /// <summary>
+    /// Payment system (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payment_system")]
+    public string? PaymentSystem { get; set; }
+
+    /// <summary>
+    /// Payment token (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("token")]
+    public string? Token { get; set; }
+
+    /// <summary>
+    /// Provider field &lt;c&gt;bin_country&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("bin_country")]
+    public string? BinCountry { get; set; }
+    /// <summary>
+    /// Provider field &lt;c&gt;saved_card&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("saved_card")]
+    public bool? SavedCard { get; set; }
+}
+
+/// <summary>
+/// Identifiers assigned to the payment by an external partner system.
+/// </summary>
+/// <remarks>
+/// Returned only for payments processed through a partner (for example a mobile account top-up), and only
+/// after the partner has provided its identifiers — so a missing object is normal for most payments.
+/// </remarks>
+public class PartnerDetails
+{
+    /// <summary>
+    /// Transaction identifier in the external partner system. Omitted while the partner has not returned it
+    /// yet.
+    /// </summary>
+    [JsonPropertyName("transaction_id")]
+    public string? TransactionId { get; set; }
+}
+
+/// <summary>
+/// Express checkout delivery details (JSON object as per CDN documentation)
+/// </summary>
+public class ExpressCheckoutDeliveryDetails
+{
+    /// <summary>
+    /// Apartment number (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("apartment")]
+    public string? Apartment { get; set; }
+
+    /// <summary>
+    /// City name (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("city")]
+    public string? City { get; set; }
+
+    /// <summary>
+    /// Delivery type (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("delivery_type")]
+    public string? DeliveryType { get; set; }
+
+    /// <summary>
+    /// House number (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("house")]
+    public string? House { get; set; }
+
+    /// <summary>
+    /// Delivery provider (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("provider")]
+    public string? Provider { get; set; }
+
+    /// <summary>
+    /// Street name (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("street")]
+    public string? Street { get; set; }
+
+    /// <summary>
+    /// Warehouse number (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("warehouse_number")]
+    public string? WarehouseNumber { get; set; }
+}
+
+/// <summary>
+/// Express checkout recipient details (JSON object as per CDN documentation)
+/// </summary>
+public class ExpressCheckoutRecipient
+{
+    /// <summary>
+    /// Recipient phone number (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("phone")]
+    public string? Phone { get; set; }
+
+    /// <summary>
+    /// Recipient first name (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// Recipient last name (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("last_name")]
+    public string? LastName { get; set; }
+
+    /// <summary>
+    /// Recipient middle name/patronym (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("middle_name")]
+    public string? MiddleName { get; set; }
+}
+
+/// <summary>
+/// Express checkout order details (JSON object as per CDN documentation)
+/// </summary>
+public class ExpressCheckoutOrderDetails
+{
+    /// <summary>
+    /// Delivery details (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("delivery_details")]
+    public ExpressCheckoutDeliveryDetails? DeliveryDetails { get; set; }
+
+    /// <summary>
+    /// Order recipient (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("order_recipient")]
+    public ExpressCheckoutRecipient? OrderRecipient { get; set; }
+}
+
+/// <summary>
+/// Wallet item details (JSON object as per CDN documentation)
+/// </summary>
+public class WalletItem
+{
+    /// <summary>
+    /// Card details (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("card")]
+    public CardItemDetails? Card { get; set; }
+
+    /// <summary>
+    /// Wallet option ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("option_id")]
+    public string? OptionId { get; set; }
+
+    /// <summary>
+    /// Whether this is the default payment method (JSON boolean as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("is_default")]
+    public bool? IsDefault { get; set; }
+
+    /// <summary>
+    /// Optional card name set by user (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// Payment method type (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("type")]
+    public string? Type { get; set; }
+}
+
+/// <summary>
+/// Card item details (JSON object as per CDN documentation)
+/// </summary>
+public class CardItemDetails
+{
+    /// <summary>
+    /// Masked card number (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("mask")]
+    public string? Mask { get; set; }
+
+    /// <summary>
+    /// Card brand/payment system (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("brand")]
+    public string? Brand { get; set; }
+
+    /// <summary>
+    /// Card expiration date (ISO 8601 format)
+    /// </summary>
+    [JsonPropertyName("expires_at")]
+    [JsonConverter(typeof(NullableFlexibleDateTimeConverter))]
+    public DateTime? ExpiresAt { get; set; }
+
+    /// <summary>
+    /// Bank short name (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("bank_short_name")]
+    public string? BankShortName { get; set; }
+
+    /// <summary>
+    /// Card art image URL
+    /// </summary>
+    [JsonPropertyName("card_art_url")]
+    public string? CardArtUrl { get; set; }
+    /// <summary>
+    /// Card number
+    /// </summary>
+    [JsonPropertyName("full_number")]
+    public string? FullNumber { get; set; }
+    /// <summary>
+    /// Payment system
+    /// </summary>
+    [JsonPropertyName("payment_system")]
+    public string? PaymentSystem { get; set; }
+    /// <summary>
+    /// Card token
+    /// </summary>
+    [JsonPropertyName("token")]
+    public string? Token { get; set; }
+}
+
+/// <summary>
+/// Get payment status response (OpenAPI schema)
+/// </summary>
+public class GetPaymentStatus
+{
+    /// <summary>
+    /// Card details
+    /// </summary>
+    [JsonPropertyName("card")]
+    public CardItemDetails? Card { get; set; }
+
+    /// <summary>
+    /// ID of added card. Can be used for payments with wallet payment type
+    /// </summary>
+    [JsonPropertyName("option_id")]
+    public string? OptionId { get; set; }
+
+    /// <summary>
+    /// Whether payment is confirmed
+    /// </summary>
+    [JsonPropertyName("is_confirmed")]
+    public bool IsConfirmed { get; set; }
+
+    /// <summary>
+    /// Payment type (always "card")
+    /// </summary>
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = "card";
+
+    /// <summary>
+    /// Operation status
+    /// </summary>
+    [JsonPropertyName("status")]
+    public OperationStatus Status { get; set; }
+}

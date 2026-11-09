@@ -1,0 +1,443 @@
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+using MixSystems.RozetkaPay.Models.Common;
+
+namespace MixSystems.RozetkaPay.Models.Payouts;
+
+// ===================== RECIPIENT MODELS =====================
+
+/// <summary>
+/// Base recipient user information (JSON object as per CDN documentation)
+/// </summary>
+public class RecipientUser
+{
+    /// <summary>
+    /// Recipient email address (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("email")]
+    [EmailAddress]
+    public string? Email { get; set; }
+
+    /// <summary>
+    /// Recipient first name (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("first_name")]
+    [Required]
+    [MaxLength(500)]
+    public string FirstName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Recipient last name (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("last_name")]
+    [Required]
+    [MaxLength(500)]
+    public string LastName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Recipient middle name/patronym (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("middle_name")]
+    [MaxLength(500)]
+    public string? MiddleName { get; set; }
+
+    /// <summary>
+    /// Recipient phone number (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("phone")]
+    public string? Phone { get; set; }
+
+    /// <summary>
+    /// Recipient ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("rid")]
+    public string? Rid { get; set; }
+
+    /// <summary>
+    /// Individual taxpayer number (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("ipn")]
+    [MaxLength(10)]
+    public string? Ipn { get; set; }
+
+    /// <summary>
+    /// External recipient ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("external_id")]
+    public string? ExternalId { get; set; }
+}
+
+/// <summary>
+/// Card data for payouts (JSON object as per CDN documentation)
+/// </summary>
+public class CardData
+{
+    /// <summary>
+    /// Full card number (JSON string as per CDN documentation)
+    /// Required if token is empty
+    /// </summary>
+    [JsonPropertyName("number")]
+    public string? Number { get; set; }
+
+    /// <summary>
+    /// Card token received from payment operation (JSON string as per CDN documentation)
+    /// Required if number is empty
+    /// </summary>
+    [JsonPropertyName("token")]
+    public string? Token { get; set; }
+
+    /// <summary>
+    /// Card identifier in wallet (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("option_id")]
+    public string? OptionId { get; set; }
+}
+
+/// <summary>
+/// Card recipient for payouts (JSON object as per CDN documentation)
+/// </summary>
+public class CardRecipient : RecipientUser
+{
+    /// <summary>
+    /// Card data for payout (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("card_data")]
+    [Required]
+    public CardData CardData { get; set; } = new();
+}
+
+/// <summary>
+/// Cash recipient for payouts (JSON object as per CDN documentation)
+/// </summary>
+public class CashRecipient : RecipientUser
+{
+    /// <summary>
+    /// Phone number is required for cash recipients (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("phone")]
+    [Required]
+    public new string Phone { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Provider field &lt;c&gt;card_data&lt;/c&gt;.
+    /// </summary>
+    [Required]
+    [JsonPropertyName("card_data")]
+    public CardData? CardData { get; set; }
+}
+
+/// <summary>
+/// Payout recipient with type discrimination (JSON object as per CDN documentation)
+/// </summary>
+public class PayoutRecipient
+{
+    /// <summary>
+    /// Payout type (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payout_type")]
+    [Required]
+    public PayoutType PayoutType { get; set; }
+
+    /// <summary>
+    /// Card recipient details (JSON object as per CDN documentation)
+    /// Required if payout_type is "card"
+    /// </summary>
+    [JsonPropertyName("card")]
+    public CardRecipient? Card { get; set; }
+
+    /// <summary>
+    /// Cash recipient details (JSON object as per CDN documentation)
+    /// Required if payout_type is "cash"
+    /// </summary>
+    [JsonPropertyName("cash")]
+    public CashRecipient? Cash { get; set; }
+}
+
+/// <summary>
+/// Payout type enumeration (JSON string as per CDN documentation)
+/// </summary>
+public enum PayoutType
+{
+    /// <summary>
+    /// Card payout
+    /// </summary>
+    [JsonStringEnumMemberName("card")]
+    Card,
+
+    /// <summary>
+    /// Cash payout
+    /// </summary>
+    [JsonStringEnumMemberName("cash")]
+    Cash
+}
+
+// ===================== CREATE PAYOUT MODELS =====================
+
+
+// ===================== PAYOUT RESPONSE MODELS =====================
+
+
+// ===================== PAYOUT LIST MODELS =====================
+
+
+
+// ===================== BALANCE MODELS =====================
+
+
+// ===================== ADDITIONAL PAYOUT MODELS =====================
+
+/// <summary>
+/// Request payout order details (JSON object as per CDN documentation)
+/// </summary>
+public class PayoutOrderDetails
+{
+    /// <summary>
+    /// Callback URL for notifications (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("callback_url")]
+    public string? CallbackUrl { get; set; }
+
+    /// <summary>
+    /// Payment currency (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("currency")]
+    [Required]
+    public string Currency { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Order description (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("description")]
+    [Required]
+    [MaxLength(500)]
+    [MinLength(1)]
+    public string Description { get; set; } = string.Empty;
+
+    /// <summary>
+    /// External order ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("external_id")]
+    [Required]
+    public string ExternalId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Original amount (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("original_amount")]
+    [Required]
+    public string OriginalAmount { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Payout payer details (JSON object as per CDN documentation)
+/// </summary>
+public class PayoutPayer
+{
+    /// <summary>
+    /// Entity ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("entity_id")]
+    [Required]
+    public string EntityId { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Request to create a payout with complete order structure (JSON object as per CDN documentation)
+/// </summary>
+public class RequestPayoutRequest
+{
+    /// <summary>
+    /// Order details (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("order")]
+    [Required]
+    public PayoutOrderDetails Order { get; set; } = new();
+
+    /// <summary>
+    /// Payer information (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payer")]
+    [Required]
+    public PayoutPayer Payer { get; set; } = new();
+
+    /// <summary>
+    /// Recipient information (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("recipient")]
+    [Required]
+    public PayoutRecipient Recipient { get; set; } = new();
+}
+
+/// <summary>
+/// Request to resend payout callback (JSON object as per CDN documentation)
+/// </summary>
+public class ResendPayoutCallbackRequest
+{
+    /// <summary>
+    /// External payout ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("external_id")]
+    [Required]
+    public string ExternalId { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Response for payout callback resend
+/// </summary>
+public class PayoutCallbackResendResponse
+{
+    /// <summary>
+    /// Operation status
+    /// </summary>
+    [JsonPropertyName("status")]
+    public string? Status { get; set; }
+
+    /// <summary>
+    /// Status message
+    /// </summary>
+    [JsonPropertyName("message")]
+    public string? Message { get; set; }
+
+    /// <summary>
+    /// Default constructor for 204 No Content responses
+    /// </summary>
+    public PayoutCallbackResendResponse()
+    {
+        Status = "success";
+        Message = "Callback sent successfully";
+    }
+}
+
+/// <summary>
+/// Request to cancel cash payout (JSON object as per CDN documentation)
+/// </summary>
+public class CancelCashPayoutRequest
+{
+    /// <summary>
+    /// External payout ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("external_id")]
+    [Required]
+    public string ExternalId { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Payer account details (JSON object as per CDN documentation)
+/// </summary>
+public class PayerAccount
+{
+    /// <summary>
+    /// Entity ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("entity_id")]
+    [Required]
+    public string EntityId { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Payout transaction result (JSON object as per CDN documentation)
+/// </summary>
+public class PayoutTransactionResult
+{
+    /// <summary>
+    /// Payment currency (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("currency")]
+    public string? Currency { get; set; }
+
+    /// <summary>
+    /// Transaction description (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
+
+    /// <summary>
+    /// External transaction ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("external_id")]
+    public string? ExternalId { get; set; }
+
+    /// <summary>
+    /// Financial channel ID (JSON number as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("fc_id")]
+    public int? FcId { get; set; }
+
+    /// <summary>
+    /// Original amount (JSON number as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("original_amount")]
+    public decimal? OriginalAmount { get; set; }
+
+    /// <summary>
+    /// Partner key ID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("partner_key_id")]
+    public string? PartnerKeyId { get; set; }
+
+    /// <summary>
+    /// Payer account information (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payer_account")]
+    public PayerAccount? PayerAccount { get; set; }
+
+    /// <summary>
+    /// Payer amount (JSON number as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payer_amount")]
+    public decimal? PayerAmount { get; set; }
+
+    /// <summary>
+    /// Payer outer fee (JSON number as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payer_outer_fee")]
+    public decimal? PayerOuterFee { get; set; }
+
+    /// <summary>
+    /// Payment type (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payment_type")]
+    public string? PaymentType { get; set; }
+
+    /// <summary>
+    /// Payout type (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("payout_type")]
+    public string? PayoutType { get; set; }
+
+    /// <summary>
+    /// Recipient user information (JSON object as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("recipient_user")]
+    public RecipientUser? RecipientUser { get; set; }
+
+    /// <summary>
+    /// Operation status (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("status")]
+    public OperationStatus? Status { get; set; }
+
+    /// <summary>
+    /// Status code (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("status_code")]
+    public string? StatusCode { get; set; }
+
+    /// <summary>
+    /// Status code description (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("status_code_description")]
+    public string? StatusCodeDescription { get; set; }
+
+    /// <summary>
+    /// Transaction UUID (JSON string as per CDN documentation)
+    /// </summary>
+    [JsonPropertyName("transaction_id")]
+    public string? TransactionId { get; set; }
+
+    /// <summary>
+    /// Provider field &lt;c&gt;receipt_url&lt;/c&gt;.
+    /// </summary>
+    [JsonPropertyName("receipt_url")]
+    public string? ReceiptUrl { get; set; }
+} 

@@ -1,0 +1,353 @@
+using System.Reflection;
+using System.Text.Json.Serialization;
+using MixSystems.RozetkaPay.Tests.TestInfrastructure;
+
+namespace MixSystems.RozetkaPay.Tests;
+
+/// <summary>
+/// A model that mirrors a schema declares no property of its own that the schema does not.
+/// </summary>
+/// <remarks>
+/// <para>
+/// This is the direction <c>ModelFieldCoverageTests</c> leaves open. That test checks only that
+/// nothing declared is missing, and says in its own remarks that extras are excluded because many
+/// are inherited from a shared base and removing them is a judgement per type. Fair at the time —
+/// but nothing ever made the judgement, and the extras accumulated behind it.
+/// </para>
+/// <para>
+/// The severity depends on which way the data flows. On a <strong>request</strong> model an
+/// undeclared property is a trap: the caller sets it, the SDK serializes it, the provider drops a
+/// field it does not declare, and the intent vanishes with no error anywhere. Every one removed here
+/// sat beside the declared field it shadowed, under a name that read like the simpler way to do the
+/// same thing — <c>apple_pay_token</c> next to <c>apple_pay</c>, <c>card_number</c> next to
+/// <c>cc_number</c>, <c>card</c> next to <c>cc_token</c>. On a <strong>response</strong> model it is
+/// misleading rather than harmful: the provider never sends the field, so the property is
+/// permanently null and a caller branching on it writes dead code.
+/// </para>
+/// <para>
+/// The rule is deliberately about properties a type <em>declares itself</em>. Inherited ones are a
+/// different defect with a different remedy, and mixing them would have meant either exempting
+/// dozens of entries — which hollows out the gate — or restructuring the class hierarchy inside a
+/// change about undeclared fields. See
+/// <see cref="EveryRemainingExtra_ShouldBeInherited"/>.
+/// </para>
+/// </remarks>
+public class UndeclaredPropertyTests
+{
+    /// <summary>
+    /// Undeclared properties a type declares itself and is allowed to keep, each with its reason.
+    /// </summary>
+    /// <remarks>
+    /// Response-side only, and the second test enforces that. An undeclared request property
+    /// silently discards what the caller asked for; no reason is good enough to leave one, so the
+    /// list cannot hold one. These remain because the document is known to under-document response
+    /// bodies, and deleting a property the provider does in fact send would lose data — the opposite
+    /// mistake, and a quieter one. Each needs a live call to settle.
+    /// </remarks>
+    private static readonly Dictionary<string, string> AcceptedExtras = new(StringComparer.Ordinal)
+    {
+        // Both of these mirror a component under components.responses that the operations reaching
+        // them no longer exist for: EXP-403 removed /api/alternative-payments/v1/operations after the
+        // live gateway answered 404. Whether the types themselves should go is EXP-420's question,
+        // not this one, and deleting fields from a type that is itself under review would only make
+        // that harder to judge.
+        ["AlternativePaymentOperationResult.amount"] = "response-side; type pending review under EXP-420",
+        ["AlternativePaymentOperationResult.created_at"] = "response-side; type pending review under EXP-420",
+        ["AlternativePaymentOperationResult.currency"] = "response-side; type pending review under EXP-420",
+        ["AlternativePaymentOperationResult.payment_method"] = "response-side; type pending review under EXP-420",
+        ["AlternativePaymentOperationResult.processed_at"] = "response-side; type pending review under EXP-420",
+        ["AlternativePaymentOperationResult.status"] = "response-side; type pending review under EXP-420",
+        ["AlternativePaymentOperationsResult.count"] = "response-side; type pending review under EXP-420",
+        ["AlternativePaymentOperationsResult.operations"] = "response-side; type pending review under EXP-420",
+        ["AlternativePaymentOperationsResult.total"] = "response-side; type pending review under EXP-420",
+
+        // The rest are read off responses. The document under-documents response bodies — that is how
+        // GetBanksAsync and GetPlansAsync shipped expecting a wrapper where the API returns a bare
+        // array — so removing a property the provider does send would lose data silently, the
+        // opposite mistake and a quieter one. Each needs one live call to settle.
+        ["CardItemDetails.brand"] =
+            "response-side; sits beside the declared payment_system and may be the provider's own "
+            + "spelling of it — a live card lookup settles which",
+        ["FeeDetails.rate"] =
+            "response-side; the schema declares amount and currency only, but a rate is exactly the "
+            + "kind of field an under-documented fee body carries",
+        ["PaymentReceiptResult.receipt"] = "response-side; awaiting a live receipt call to confirm",
+        ["PaymentSearchList.count"] = "response-side; awaiting a live search call to confirm",
+        ["PaymentSearchList.total"] = "response-side; awaiting a live search call to confirm",
+        ["PaymentStatusResult.processed_at"] = "response-side; awaiting a live status call to confirm",
+        ["PaymentStatusResult.status"] = "response-side; awaiting a live status call to confirm",
+        ["SetDefaultCardResponse.default_card_id"] = "response-side; awaiting a live set-default call to confirm",
+        ["SetDefaultCardResponse.message"] = "response-side; awaiting a live set-default call to confirm",
+        ["SetDefaultCardResponse.status"] = "response-side; awaiting a live set-default call to confirm",
+        ["ResultPaymentMethod.payment_system"] = "response-side; awaiting a live payment result to confirm",
+        ["ResultPaymentMethod.title"] = "response-side; awaiting a live payment result to confirm",
+
+        // These six are declared, but on the other half of the pair: the five below belong to
+        // SubscriptionPaymentDetails and SubscriptionPaymentDetails.id belongs to SubscriptionPayment.
+        // The SDK put each on both. Whether the provider flattens the details onto the parent needs
+        // one live subscription payment to answer, and until then removing either copy risks
+        // dropping the one the provider actually sends.
+        ["SubscriptionPayment.amount"] = "response-side; declared on the sibling SubscriptionPaymentDetails",
+        ["SubscriptionPayment.created_at"] = "response-side; declared on the sibling SubscriptionPaymentDetails",
+        ["SubscriptionPayment.currency"] = "response-side; declared on the sibling SubscriptionPaymentDetails",
+        ["SubscriptionPayment.processed_at"] = "response-side; declared on the sibling SubscriptionPaymentDetails",
+        ["SubscriptionPayment.status"] = "response-side; declared on the sibling SubscriptionPaymentDetails",
+        ["SubscriptionPaymentDetails.id"] = "response-side; declared on the parent SubscriptionPayment",
+    };
+
+    [Fact]
+    public void NoModel_ShouldDeclareAPropertyItsSchemaDoesNotDeclare()
+    {
+        Dictionary<string, HashSet<string>> declared = DeclaredProperties();
+
+        List<string> extras = [.. OwnProperties()
+            .Where(entry => IsModelled(entry.Schema, declared))
+            .Where(entry => !DeclaredFor(entry.Schema, declared).Contains(entry.Field))
+            .Select(static entry => $"{entry.Schema}.{entry.Field}")
+            .Where(static key => !AcceptedExtras.ContainsKey(key))
+            .Order(StringComparer.Ordinal)];
+
+        Assert.Empty(extras);
+    }
+
+    /// <summary>
+    /// Nothing on the request side may be exempted.
+    /// </summary>
+    /// <remarks>
+    /// This is what keeps the list above a record of open questions rather than a way around the
+    /// gate: an entry has to name a schema no request body can reach.
+    /// </remarks>
+    [Fact]
+    public void NoAcceptedExtra_ShouldBeOnARequestModel()
+    {
+        HashSet<string> requestSchemas = [.. OpenApiSnapshot.RequestReachableSchemas()];
+
+        List<string> offenders = [.. AcceptedExtras.Keys
+            .Where(key => SchemaNamesOf(key.Split('.', 2)[0]).Any(requestSchemas.Contains))
+            .Order(StringComparer.Ordinal)];
+
+        Assert.Empty(offenders);
+    }
+
+    /// <summary>
+    /// Every exemption still describes a real extra. A stale one hides the property it excuses.
+    /// </summary>
+    [Fact]
+    public void EveryAcceptedExtra_ShouldStillBeAnExtra()
+    {
+        Dictionary<string, HashSet<string>> declared = DeclaredProperties();
+        HashSet<string> own = [.. OwnProperties().Select(static entry => $"{entry.Schema}.{entry.Field}")];
+
+        List<string> stale = [.. AcceptedExtras.Keys
+            .Where(key =>
+            {
+                string[] parts = key.Split('.', 2);
+                bool present = own.Contains(key);
+                bool undeclared = !DeclaredFor(parts[0], declared).Contains(parts[1]);
+
+                return !present || !undeclared;
+            })
+            .Order(StringComparer.Ordinal)];
+
+        Assert.Empty(stale);
+    }
+
+    /// <summary>
+    /// Every exemption says why. An entry with no reason is an entry nobody can review.
+    /// </summary>
+    [Fact]
+    public void EveryAcceptedExtra_ShouldCarryAReason()
+    {
+        Assert.Empty(AcceptedExtras
+            .Where(static entry => string.IsNullOrWhiteSpace(entry.Value))
+            .Select(static entry => entry.Key)
+            .Order(StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// Undeclared properties that reach a model through a base class rather than its own declaration.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// EXP-423 closed the blanket version of this: <c>ResultUserDetails</c> and
+    /// <c>AlternativePaymentCustomerDetails</c> stopped deriving from <c>UserInfo</c> and now declare the
+    /// fields their own flat schemas declare, and <c>AlternativePaymentProduct</c> was detached from
+    /// <c>Product</c> earlier in EXP-445. What survives is enumerated in
+    /// <see cref="JustifiedInheritedExtras"/> with the schema that justifies each — so the rule is now as
+    /// strict as the self-declared one, not a carve-out.
+    /// </para>
+    /// <para>
+    /// The claim is machine-checked rather than asserted: this test proves every remaining extra
+    /// really is inherited. If someone adds an invented property to a derived type, it appears in
+    /// <see cref="NoModel_ShouldDeclareAPropertyItsSchemaDoesNotDeclare"/> instead, where there is
+    /// no exemption to hide behind.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void EveryRemainingExtra_ShouldBeInherited()
+    {
+        Dictionary<string, HashSet<string>> declared = DeclaredProperties();
+        HashSet<string> own = [.. OwnProperties().Select(static entry => $"{entry.Schema}.{entry.Field}")];
+
+        // Everything the SDK would actually serialize, inherited members included, that the document
+        // does not declare and no exemption covers. Each must have arrived through a base class —
+        // anything a type declares itself belongs to the strict rule above, not here.
+        List<string> selfDeclared = [.. AllProperties()
+            .Where(entry => IsModelled(entry.Schema, declared))
+            .Where(entry => !DeclaredFor(entry.Schema, declared).Contains(entry.Field))
+            .Select(static entry => $"{entry.Schema}.{entry.Field}")
+            .Where(static key => !AcceptedExtras.ContainsKey(key))
+            .Where(own.Contains)
+            .Order(StringComparer.Ordinal)];
+
+        Assert.Empty(selfDeclared);
+    }
+
+    /// <summary>
+    /// Inherited properties the document does not declare for the derived type's <b>own</b> schema, each with
+    /// the schema that does declare it. Every entry is a claim that can be checked against the document, not
+    /// an exemption (EXP-423).
+    /// </summary>
+    /// <remarks>
+    /// <b>The list is empty, and that is the point.</b> It held six entries, all belonging to one C# type
+    /// serving two schemas — the SDK's <c>CustomerInfo</c> was the customer block of both
+    /// <c>components.schemas.CustomerInfo</c> and <c>components.schemas.CustomerRequestUserDetails</c>.
+    /// EXP-452 split that type, so every inherited property in the SDK is now declared by the schema of the
+    /// type that carries it, with nothing to justify.
+    /// <para>
+    /// The field stays rather than being deleted: a future entry is a decision someone must write down and
+    /// defend against <see cref="EveryJustification_ShouldStillHold"/>, which is cheaper to keep than to
+    /// re-invent the next time the document composes something the C# model does not.
+    /// </para>
+    /// </remarks>
+    private static readonly Dictionary<string, string> JustifiedInheritedExtras = new(StringComparer.Ordinal)
+    {
+    };
+
+    /// <summary>
+    /// No inherited extra may exist beyond the justified list (EXP-423). Before this, an inherited undeclared
+    /// property was unbounded: the strict rule covered only what a type declared itself, so pushing a field
+    /// onto a base class was a way to smuggle it past the gate.
+    /// </summary>
+    [Fact]
+    public void NoInheritedExtra_ShouldExistBeyondTheJustifiedList()
+    {
+        Dictionary<string, HashSet<string>> declared = DeclaredProperties();
+        HashSet<string> own = [.. OwnProperties().Select(static entry => $"{entry.Schema}.{entry.Field}")];
+
+        List<string> unjustified = [.. AllProperties()
+            .Where(entry => IsModelled(entry.Schema, declared))
+            .Where(entry => !DeclaredFor(entry.Schema, declared).Contains(entry.Field))
+            .Select(static entry => $"{entry.Schema}.{entry.Field}")
+            .Where(static key => !AcceptedExtras.ContainsKey(key))
+            .Where(key => !own.Contains(key))
+            .Where(static key => !JustifiedInheritedExtras.ContainsKey(key))
+            .Order(StringComparer.Ordinal)];
+
+        Assert.True(
+            unjustified.Count == 0,
+            "These properties reach the wire through a base class, and the document declares none of them for "
+            + "the derived type. Either stop deriving (see ResultUserDetails in EXP-423), or add the entry "
+            + "with the schema that declares it:\n  "
+            + string.Join("\n  ", unjustified));
+    }
+
+    /// <summary>
+    /// Each justification must still hold: the named schema must really declare the field, and the entry must
+    /// still describe a live inherited extra. A stale justification is how a gate quietly stops gating.
+    /// </summary>
+    [Fact]
+    public void EveryJustification_ShouldStillHold()
+    {
+        Dictionary<string, HashSet<string>> declared = DeclaredProperties();
+        HashSet<string> own = [.. OwnProperties().Select(static entry => $"{entry.Schema}.{entry.Field}")];
+        HashSet<string> live = [.. AllProperties().Select(static entry => $"{entry.Schema}.{entry.Field}")];
+
+        foreach ((string key, string justifyingSchema) in JustifiedInheritedExtras)
+        {
+            string field = key[(key.IndexOf('.', StringComparison.Ordinal) + 1)..];
+
+            Assert.True(live.Contains(key), $"{key} is no longer serialized — drop the justification.");
+            Assert.False(own.Contains(key), $"{key} is declared by the type itself — it belongs to the strict rule.");
+            Assert.True(
+                declared.TryGetValue(justifyingSchema, out HashSet<string>? fields) && fields.Contains(field),
+                $"{justifyingSchema} does not declare {field}; the justification for {key} is wrong.");
+        }
+    }
+
+    /// <summary>
+    /// What the document declares for each name, merged across every component section.
+    /// </summary>
+    /// <remarks>
+    /// <c>SchemaPropertyNames</c> walks <c>schemas</c>, <c>requestBodies</c> and <c>responses</c>,
+    /// so one name can arrive several times with different property sets — a request body and the
+    /// schema it wraps, for instance. Taking any single entry as the declared surface reports the
+    /// others' fields as undeclared. The union is what the document declares under that name.
+    /// </remarks>
+    private static Dictionary<string, HashSet<string>> DeclaredProperties()
+    {
+        Dictionary<string, HashSet<string>> merged = new(StringComparer.Ordinal);
+
+        foreach ((string name, IReadOnlyCollection<string> properties) in OpenApiSnapshot.SchemaPropertyNames())
+        {
+            if (!merged.TryGetValue(name, out HashSet<string>? fields))
+            {
+                fields = new HashSet<string>(StringComparer.Ordinal);
+                merged[name] = fields;
+            }
+
+            fields.UnionWith(properties);
+        }
+
+        return merged;
+    }
+
+    /// <summary>
+    /// Everything the document declares for a type, across every schema it is spread over.
+    /// </summary>
+    /// <remarks>
+    /// There used to be an alias table here, mapping one C# type onto several schema names, and it existed
+    /// for exactly one entry: <c>CustomerInfo</c> served both a request and a response schema. EXP-452 split
+    /// that type, so the alias became a lie — and the union it computed became a way to hide a real mismatch,
+    /// because a field declared by <i>either</i> schema passed even on the operation whose schema declares
+    /// nothing of the sort. One type, one schema, compared exactly.
+    /// </remarks>
+    private static HashSet<string> DeclaredFor(
+        string type, Dictionary<string, HashSet<string>> declared) =>
+        declared.TryGetValue(type, out HashSet<string>? fields)
+            ? fields
+            : new HashSet<string>(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Whether the document models a type at all, under any of its names.
+    /// </summary>
+    private static bool IsModelled(string type, Dictionary<string, HashSet<string>> declared) =>
+        declared.ContainsKey(type);
+
+    /// <summary>
+    /// Every schema name a type is compared against.
+    /// </summary>
+    private static IEnumerable<string> SchemaNamesOf(string type) =>
+        [type];
+
+    private static IEnumerable<(string Schema, string Field)> OwnProperties() =>
+        ModelProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+
+    private static IEnumerable<(string Schema, string Field)> AllProperties() =>
+        ModelProperties(BindingFlags.Public | BindingFlags.Instance);
+
+    private static IEnumerable<(string Schema, string Field)> ModelProperties(BindingFlags binding)
+    {
+        return typeof(MixSystems.RozetkaPay.RozetkaPayClient).Assembly
+            .GetExportedTypes()
+            .Where(static type => type.IsClass && !type.IsAbstract && type.Namespace?.Contains(".Models") == true)
+            .GroupBy(static type => type.Name, StringComparer.Ordinal)
+            .SelectMany(group => group.First()
+                .GetProperties(binding)
+                .Where(static property => property.GetCustomAttribute<JsonIgnoreAttribute>() is null)
+                .Select(property => (
+                    Schema: group.Key,
+                    Field: property.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? property.Name))
+                .Distinct());
+    }
+}
